@@ -1,0 +1,20 @@
+# config files
+config.env
+
+# log files
+logs/
+*.log
+
+# compiled files
+__pycache__/
+*.pyc
+
+# editor files
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# system files
+.DS_Store
+Thumbs.db
