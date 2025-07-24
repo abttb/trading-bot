@@ -1,4 +1,4 @@
-# bot.py – גרסה מחודשת עם ניהול תקציב
+# bot.py – גרסה עם ניהול תקציב + Trailing Stop
 
 import time
 from ib_insync import *
@@ -11,6 +11,7 @@ CHECK_INTERVAL = 60  # שניות בין סריקות
 VOLUME_THRESHOLD = 1.2  # פי כמה מהממוצע נחשב חריג
 MAX_POSITIONS = 10  # כמות מניות מקסימלית לפתיחה במקביל
 MIN_TRADE_AMOUNT = 50  # סכום מינימלי לעסקה (ב-$)
+TRAIL_PERCENT = 2.0  # אחוז לגרירת סטופ (Trailing Stop)
 
 
 def is_market_open():
@@ -54,18 +55,30 @@ def check_volume_and_trade(ib, symbol, budget_per_trade):
         if qty < 1:
             log_event(f"⛔ תקציב לא מספיק לרכישת {symbol}")
             return False
+
         log_event(f"📈 כניסה ל-{symbol}, כמות: {qty}, לפי מחיר: {price}")
-        order = MarketOrder('BUY', qty)
-        trade = place_market_order(ib, stock, order)
+        buy_order = MarketOrder('BUY', qty)
+        trade = place_market_order(ib, stock, buy_order)
         while not trade.isDone():
             ib.waitOnUpdate()
+
+        if trade.orderStatus.status.lower() != 'filled':
+            log_event(f"⚠️ לא בוצעה קנייה בפועל עבור {symbol}")
+            return False
+
         log_event(f"✅ בוצעה רכישה של {symbol}, סטטוס: {trade.orderStatus.status}")
+
+        # יצירת פקודת Trailing Stop כמכירה
+        trailing_order = TrailingStopOrder('SELL', qty, trailingPercent=TRAIL_PERCENT)
+        ib.placeOrder(stock, trailing_order)
+        log_event(f"📉 נשלחה פקודת Trailing Stop עבור {symbol} עם {TRAIL_PERCENT}%")
+
         return True
     return False
 
 
 def run_bot():
-    log_event("🚀 התחלת פעילות הבוט עם ניהול תקציב")
+    log_event("🚀 התחלת פעילות הבוט עם ניהול תקציב ו-Trailing Stop")
     symbols = load_sp500_symbols()
     ib = connect_to_ib()
 
